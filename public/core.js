@@ -1,12 +1,14 @@
-const points = [];
-let loaderIntervalId;
-const CANVAS_SIZE = 620;
-const POINT_GROUPS = 40;
-const POINT_GROUP_SIZE = 10000;
-const POINT_RANDOM = 10000;
-const POINT_STD_DEVIATION = 25;
-const CLUSTERS = 30;
+let points = [];
+let animationsIntervalId = [];
+const CANVAS_SIZE = 800;
+const POINT_GROUPS = 20;
+const POINT_GROUP_SIZE = 15000;
+const POINT_GROUP_MIN_DISTANCE = 120;
+const POINT_RANDOM = 50000;
+const POINT_STD_DEVIATION = 30;
+const CLUSTERS = 20;
 const PROGRESS_CIRCLE_MAX_SIZE = 50;
+const DEFAULT_EPOCH_COUNTER = 50;
 
 function randomGaussian(mean, sd) {
     let y, x1, x2, w;
@@ -25,14 +27,22 @@ function randomGaussian(mean, sd) {
 function generatePoints() {
     const originalCanvas = document.getElementById('original');
     const ctx = originalCanvas.getContext('2d');
-    points.length = 0;
+    points = [];
+    const generatedGroups = [];
     for (let i = 0; i < POINT_GROUPS; ++i) {
         const gX = Math.random() * CANVAS_SIZE;
         const gY = Math.random() * CANVAS_SIZE;
-        for (let j = 0; j < POINT_GROUP_SIZE; ++j) {
-            const x = randomGaussian(gX, POINT_STD_DEVIATION);
-            const y = randomGaussian(gY, POINT_STD_DEVIATION);
-            points.push({x, y});
+        let distances = generatedGroups.map(({x, y}) => Math.sqrt(Math.pow(x - gX, 2) + Math.pow(y - gY, 2)));
+        distances = distances.sort((a, b) => a - b);
+        if (distances[0] <= POINT_GROUP_MIN_DISTANCE) {
+            --i;
+        } else {
+            generatedGroups.push({x: gX, y: gY});
+            for (let j = 0; j < POINT_GROUP_SIZE; ++j) {
+                const x = randomGaussian(gX, POINT_STD_DEVIATION);
+                const y = randomGaussian(gY, POINT_STD_DEVIATION);
+                points.push({x, y});
+            }
         }
     }
     for (let i = 0; i < POINT_RANDOM; ++i) {
@@ -43,70 +53,67 @@ function generatePoints() {
     drawPoints(ctx);
 }
 
-function startProcessing() {
-    if (loaderIntervalId) {
-        clearInterval(loaderIntervalId);
+function startProcessing(showPreview) {
+    if (animationsIntervalId.length) {
+        animationsIntervalId.forEach(id => clearInterval(id));
+        animationsIntervalId = [];
     }
-    const workerCanvas = document.getElementById('webWorker');
-    const workerCtx = workerCanvas.getContext('2d');
-    const assemblyCanvas = document.getElementById('webAssembly');
-    const assemblyCtx = assemblyCanvas.getContext('2d');
-    const progress = {
-        displayWebWorkerProgress: true,
-        displayWebAssemblyProgress: true,
-        stopProgress: function() {
-            if (!this.displayWebWorkerProgress && !this.displayWebAssemblyProgress) {
-                clearInterval(loaderIntervalId);
+    processAlgorithm('k-means', 'k-means-worker.js', showPreview);
+}
+
+function processAlgorithm(canvasId, workerName, showPreview) {
+    const canvas = document.getElementById(canvasId);
+    const ctx = canvas.getContext('2d');
+    const epoch = parseInt(document.getElementById('epochCounter').value);
+    const epochCounter = !!epoch ? epoch : DEFAULT_EPOCH_COUNTER;
+    const progressAnimation = {
+        circle: {
+            inner: 0,
+            outer: 0
+        },
+        workerCtx: ctx,
+        intervalId: undefined,
+        stop: function () {
+            if (this.intervalId) {
+                clearInterval(this.intervalId);
             }
         }
     }
-    const circle = {inner: 0, outer: 0};
-    loaderIntervalId = setInterval(refresh(progress, circle, workerCtx, assemblyCtx), 10);
-    const clusterWorker = new Worker('cluster-worker.js');
-    clusterWorker.onmessage = processComplete(workerCtx, progress, 'displayWebWorkerProgress');
-    // const assemblyWorker = new Worker('assembly-worker.js');
-    // assemblyWorker.onmessage = () => {
-    //     assemblyWorker.onmessage = processComplete(assemblyCtx, progress, 'displayWebAssemblyProgress');
-        clusterWorker.postMessage({
-            numberOfCluster: CLUSTERS,
-            canvasSize: CANVAS_SIZE,
-            points
-        });
-    //     assemblyWorker.postMessage({
-    //         numberOfCluster: CLUSTERS,
-    //         canvasSize: CANVAS_SIZE,
-    //         points
-    //     });
-    // }
+    progressAnimation.intervalId = setInterval(refresh(progressAnimation), 10);
+    animationsIntervalId.push(progressAnimation.intervalId);
+    const kMeansWorker = new Worker(workerName);
+    kMeansWorker.onmessage = processBatch(ctx, progressAnimation);
+    kMeansWorker.postMessage({
+        numberOfCluster: CLUSTERS,
+        canvasSize: CANVAS_SIZE,
+        points,
+        showPreview,
+        epochCounter
+    });
 }
 
-function refresh(progress, circle, workerCtx, assemblyCtx) {
+function refresh(progressAnimation) {
     return () => {
-        if (progress.displayWebWorkerProgress) {
-            showProgress(workerCtx, circle);
-        }
-        if (progress.displayWebAssemblyProgress) {
-            showProgress(assemblyCtx, circle);
-        }
-        if (circle.inner !== PROGRESS_CIRCLE_MAX_SIZE) {
-            ++circle.inner;
-        } else if (circle.inner === PROGRESS_CIRCLE_MAX_SIZE && circle.outer !== PROGRESS_CIRCLE_MAX_SIZE) {
-            ++circle.outer;
+        showProgress(progressAnimation.workerCtx, progressAnimation.circle);
+        if (progressAnimation.circle.inner !== PROGRESS_CIRCLE_MAX_SIZE) {
+            ++progressAnimation.circle.inner;
+        } else if (progressAnimation.circle.inner === PROGRESS_CIRCLE_MAX_SIZE
+            && progressAnimation.circle.outer !== PROGRESS_CIRCLE_MAX_SIZE) {
+            ++progressAnimation.circle.outer;
         } else {
-            circle.inner = 0;
-            circle.outer = 0;
+            progressAnimation.circle.inner = 0;
+            progressAnimation.circle.outer = 0;
         }
     };
 }
 
-function processComplete(ctx, progress, display) {
+function processBatch(ctx, progressAnimation) {
     return (event) => {
-        progress[display] = false;
-        progress.stopProgress();
+        progressAnimation.stop();
         ctx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
         drawPoints(ctx);
-        for (let cluster of event.data) {
-            drawClusterPoint(ctx, cluster);
+        for (let cluster of event.data.clusters) {
+            drawClusterPoint(ctx, cluster, event.data.done);
         }
     }
 }
@@ -131,10 +138,9 @@ function showProgress(ctx, circle) {
     ctx.fill();
 }
 
-function drawClusterPoint(ctx, cluster) {
+function drawClusterPoint(ctx, cluster, done) {
     ctx.beginPath();
-    ctx.fillStyle = "#FF0000";
+    ctx.fillStyle = done ? '#00FF00' : '#FF0000';
     ctx.arc(cluster.x, cluster.y, 10, 0, 2 * Math.PI);
     ctx.fill();
-
 }

@@ -14,7 +14,7 @@ function reduceToSumOfPointCoords(prev, current) {
 
 onmessage = function (event) {
     let clusters = Array.from({length: event.data.numberOfCluster}, randomPointInCanvasFunction(event.data.canvasSize));
-    for (let i = 0; i < 20; ++i) {
+    for (let i = 0; i < event.data.epochCounter; ++i) {
         const pointsInCluster = Array.from({length: event.data.numberOfCluster}, () => []);
         for (let point of event.data.points) {
             const closesCluster = {cluster: 0, distance: distance(point, clusters[0])};
@@ -34,6 +34,9 @@ onmessage = function (event) {
                 y: sumOfCoords.y / pointsInCluster[idx].length
             }
         });
+        if (event.data.showPreview) {
+            postMessage({clusters, done: false});
+        }
     }
-    postMessage(clusters);
+    postMessage({clusters, done: true});
 }

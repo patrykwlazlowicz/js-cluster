@@ -5,12 +5,12 @@
     <title>Cluster</title>
     <script src="core.js"></script>
     <style>
-        .btn-group {
+        .group {
             display: flex;
             flex-direction: row;
+            align-items: baseline;
         }
-
-        button {
+        .group-item {
             max-width: 50%;
             flex: 1 1 100%;
             margin: 0.25rem;
@@ -18,12 +18,14 @@
     </style>
 </head>
 <body>
-<div class="btn-group">
-    <button onclick="generatePoints()">Generate points</button>
-    <button onclick="startProcessing()">Start processing</button>
+<div class="group">
+    <button class="group-item" onclick="generatePoints()">Generate points</button>
+    <button class="group-item" onclick="startProcessing(true)">Start processing with preview</button>
+    <button class="group-item" onclick="startProcessing(false)">Start processing with animation</button>
+    <label for="epochCounter" class="group-item">Epoch counter: </label>
+    <input id="epochCounter" class="group-item" value="50"/>
 </div>
-<canvas id="original" width="620" height="620"></canvas>
-<canvas id="webWorker" width="620" height="620"></canvas>
-<canvas id="webAssembly" width="620" height="620"></canvas>
+<canvas id="original" width="800" height="800"></canvas>
+<canvas id="k-means" width="800" height="800"></canvas>
 </body>
 </html>

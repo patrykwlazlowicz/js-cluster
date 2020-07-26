@@ -1,2 +1,4 @@
 .idea
 node_modules
+public/asm/loader.js
+public/asm/cluster.wasm

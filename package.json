@@ -1,7 +1,7 @@
 {
   "name": "js-cluster",
   "version": "1.0.0",
-  "description": "Compare plain javascript with webassembly",
+  "description": "Clustering in javascript web worker",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
@@ -11,7 +11,7 @@
     "url": "git+https://github.com/patrykwlazlowicz/js-cluster.git"
   },
   "author": "Patryk Wlazłowicz",
-  "license": "ISC",
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/patrykwlazlowicz/js-cluster/issues"
   },
