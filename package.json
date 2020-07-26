@@ -1,0 +1,22 @@
+{
+  "name": "js-cluster",
+  "version": "1.0.0",
+  "description": "Compare plain javascript with webassembly",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/patrykwlazlowicz/js-cluster.git"
+  },
+  "author": "Patryk Wlazłowicz",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/patrykwlazlowicz/js-cluster/issues"
+  },
+  "homepage": "https://github.com/patrykwlazlowicz/js-cluster#readme",
+  "dependencies": {
+    "express": "^4.17.1"
+  }
+}

@@ -64,20 +64,20 @@ function startProcessing() {
     loaderIntervalId = setInterval(refresh(progress, circle, workerCtx, assemblyCtx), 10);
     const clusterWorker = new Worker('cluster-worker.js');
     clusterWorker.onmessage = processComplete(workerCtx, progress, 'displayWebWorkerProgress');
-    const assemblyWorker = new Worker('assembly-worker.js');
-    assemblyWorker.onmessage = () => {
-        assemblyWorker.onmessage = processComplete(assemblyCtx, progress, 'displayWebAssemblyProgress');
+    // const assemblyWorker = new Worker('assembly-worker.js');
+    // assemblyWorker.onmessage = () => {
+    //     assemblyWorker.onmessage = processComplete(assemblyCtx, progress, 'displayWebAssemblyProgress');
         clusterWorker.postMessage({
             numberOfCluster: CLUSTERS,
             canvasSize: CANVAS_SIZE,
             points
         });
-        assemblyWorker.postMessage({
-            numberOfCluster: CLUSTERS,
-            canvasSize: CANVAS_SIZE,
-            points
-        });
-    }
+    //     assemblyWorker.postMessage({
+    //         numberOfCluster: CLUSTERS,
+    //         canvasSize: CANVAS_SIZE,
+    //         points
+    //     });
+    // }
 }
 
 function refresh(progress, circle, workerCtx, assemblyCtx) {
