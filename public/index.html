@@ -23,7 +23,9 @@
     <button class="group-item" onclick="startProcessing(true)">Start processing with preview</button>
     <button class="group-item" onclick="startProcessing(false)">Start processing with animation</button>
     <label for="epochCounter" class="group-item">Epoch counter: </label>
-    <input id="epochCounter" class="group-item" value="50"/>
+    <input id="epochCounter" class="group-item" value="1000"/>
+    <label for="differenceThreshold" class="group-item">Difference threshold: </label>
+    <input id="differenceThreshold" class="group-item" value="0.01"/>
 </div>
 <canvas id="original" width="600" height="600"></canvas>
 <canvas id="k-means" width="600" height="600"></canvas>

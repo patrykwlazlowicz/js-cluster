@@ -1,5 +1,5 @@
 let points = [];
-let animationsIntervalId = [];
+let animations = [];
 let pointsImage = undefined;
 const CANVAS_SIZE = 600;
 const POINT_GROUPS = 20;
@@ -9,7 +9,8 @@ const POINT_RANDOM = 50000;
 const POINT_STD_DEVIATION = 30;
 const CLUSTERS = 20;
 const PROGRESS_CIRCLE_MAX_SIZE = 50;
-const DEFAULT_EPOCH_COUNTER = 50;
+const DEFAULT_EPOCH_COUNTER = 100;
+const DEFAULT_DIFFERENCE_THRESHOLD = 100;
 
 function randomGaussian(mean, sd) {
     let y, x1, x2, w;
@@ -56,9 +57,12 @@ function generatePoints() {
 }
 
 function startProcessing(showPreview) {
-    if (animationsIntervalId.length) {
-        animationsIntervalId.forEach(id => clearInterval(id));
-        animationsIntervalId = [];
+    if (animations.length) {
+        animations.forEach(animation => {
+            animation.stop();
+            animation.refreshWorkerPreview = false;
+        });
+        animations = [];
     }
     processAlgorithm('k-means', 'k-means-worker.js', showPreview);
 }
@@ -66,8 +70,8 @@ function startProcessing(showPreview) {
 function processAlgorithm(canvasId, workerName, showPreview) {
     const canvas = document.getElementById(canvasId);
     const ctx = canvas.getContext('2d');
-    const epoch = parseInt(document.getElementById('epochCounter').value);
-    const epochCounter = !!epoch ? epoch : DEFAULT_EPOCH_COUNTER;
+    const epochCounter = parseValue('epochCounter', DEFAULT_EPOCH_COUNTER, parseInt);
+    const differenceThreshold = parseValue('differenceThreshold', DEFAULT_DIFFERENCE_THRESHOLD, parseFloat);
     const progressAnimation = {
         circle: {
             inner: 0,
@@ -75,14 +79,31 @@ function processAlgorithm(canvasId, workerName, showPreview) {
         },
         workerCtx: ctx,
         intervalId: undefined,
+        refreshWorkerPreview: true,
         stop: function () {
             if (this.intervalId) {
                 clearInterval(this.intervalId);
+                this.intervalId = undefined;
+            }
+        },
+        start: function () {
+            this.intervalId = setInterval(this.refresh.bind(this), 10);
+        },
+        refresh: function () {
+            drawProgressAnimation(this.workerCtx, this.circle);
+            if (this.circle.inner !== PROGRESS_CIRCLE_MAX_SIZE) {
+                ++this.circle.inner;
+            } else if (this.circle.inner === PROGRESS_CIRCLE_MAX_SIZE
+                && this.circle.outer !== PROGRESS_CIRCLE_MAX_SIZE) {
+                ++this.circle.outer;
+            } else {
+                this.circle.inner = 0;
+                this.circle.outer = 0;
             }
         }
     }
-    progressAnimation.intervalId = setInterval(refresh(progressAnimation), 10);
-    animationsIntervalId.push(progressAnimation.intervalId);
+    progressAnimation.start();
+    animations.push(progressAnimation);
     const kMeansWorker = new Worker(workerName);
     kMeansWorker.onmessage = processBatch(ctx, progressAnimation);
     kMeansWorker.postMessage({
@@ -90,32 +111,26 @@ function processAlgorithm(canvasId, workerName, showPreview) {
         canvasSize: CANVAS_SIZE,
         points,
         showPreview,
-        epochCounter
+        epochCounter,
+        differenceThreshold
     });
 }
 
-function refresh(progressAnimation) {
-    return () => {
-        showProgress(progressAnimation.workerCtx, progressAnimation.circle);
-        if (progressAnimation.circle.inner !== PROGRESS_CIRCLE_MAX_SIZE) {
-            ++progressAnimation.circle.inner;
-        } else if (progressAnimation.circle.inner === PROGRESS_CIRCLE_MAX_SIZE
-            && progressAnimation.circle.outer !== PROGRESS_CIRCLE_MAX_SIZE) {
-            ++progressAnimation.circle.outer;
-        } else {
-            progressAnimation.circle.inner = 0;
-            progressAnimation.circle.outer = 0;
-        }
-    };
+function parseValue(id, defaultValue, parser) {
+    const value = parser(document.getElementById(id).value);
+    return !!value ? value : defaultValue;
 }
 
 function processBatch(ctx, progressAnimation) {
     return (event) => {
         progressAnimation.stop();
-        ctx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
-        ctx.putImageData(pointsImage, 0, 0);
-        for (let cluster of event.data.clusters) {
-            drawClusterPoint(ctx, cluster, event.data.done);
+        if (progressAnimation.refreshWorkerPreview) {
+            ctx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+            ctx.putImageData(pointsImage, 0, 0);
+            for (let cluster of event.data.clusters) {
+                drawClusterPoint(ctx, cluster, event.data.done);
+            }
+            drawEpoch(ctx, event.data.epoch)
         }
     }
 }
@@ -128,7 +143,7 @@ function drawPoints(ctx) {
     }
 }
 
-function showProgress(ctx, circle) {
+function drawProgressAnimation(ctx, circle) {
     ctx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
     ctx.beginPath();
     ctx.fillStyle = "#000000";
@@ -145,4 +160,11 @@ function drawClusterPoint(ctx, cluster, done) {
     ctx.fillStyle = done ? '#00FF00' : '#FF0000';
     ctx.arc(cluster.x, cluster.y, 10, 0, 2 * Math.PI);
     ctx.fill();
+}
+
+function drawEpoch(ctx, epoch) {
+    ctx.font = "50px Arial";
+    ctx.fillStyle = '#0000FF';
+    ctx.textBaseline = 'top';
+    ctx.fillText(epoch, 10, 10);
 }
