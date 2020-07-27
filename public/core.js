@@ -1,9 +1,10 @@
 let points = [];
 let animationsIntervalId = [];
-const CANVAS_SIZE = 800;
+let pointsImage = undefined;
+const CANVAS_SIZE = 600;
 const POINT_GROUPS = 20;
 const POINT_GROUP_SIZE = 15000;
-const POINT_GROUP_MIN_DISTANCE = 120;
+const POINT_GROUP_MIN_DISTANCE = 100;
 const POINT_RANDOM = 50000;
 const POINT_STD_DEVIATION = 30;
 const CLUSTERS = 20;
@@ -51,6 +52,7 @@ function generatePoints() {
         points.push({x, y});
     }
     drawPoints(ctx);
+    pointsImage = ctx.getImageData(0, 0, CANVAS_SIZE, CANVAS_SIZE);
 }
 
 function startProcessing(showPreview) {
@@ -111,7 +113,7 @@ function processBatch(ctx, progressAnimation) {
     return (event) => {
         progressAnimation.stop();
         ctx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
-        drawPoints(ctx);
+        ctx.putImageData(pointsImage, 0, 0);
         for (let cluster of event.data.clusters) {
             drawClusterPoint(ctx, cluster, event.data.done);
         }

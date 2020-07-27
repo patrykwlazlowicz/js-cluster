@@ -8,14 +8,28 @@ function randomPointInCanvasFunction(canvasSize) {
     }
 }
 
-function reduceToSumOfPointCoords(prev, current) {
-    return {x: prev.x + current.x, y: prev.y + current.y};
+function initSumPointsInCluster() {
+    return {
+        xSum: 0,
+        ySum: 0,
+        total: 0
+    }
+}
+
+function newCluster(sumPointInCluster) {
+    return {
+        x: sumPointInCluster.xSum / sumPointInCluster.total,
+        y: sumPointInCluster.ySum / sumPointInCluster.total
+    }
 }
 
 onmessage = function (event) {
     let clusters = Array.from({length: event.data.numberOfCluster}, randomPointInCanvasFunction(event.data.canvasSize));
+    if (event.data.showPreview) {
+        postMessage({clusters, done: false});
+    }
     for (let i = 0; i < event.data.epochCounter; ++i) {
-        const pointsInCluster = Array.from({length: event.data.numberOfCluster}, () => []);
+        const sumPointsInCluster = Array.from({length: event.data.numberOfCluster}, () => initSumPointsInCluster());
         for (let point of event.data.points) {
             const closesCluster = {cluster: 0, distance: distance(point, clusters[0])};
             clusters.forEach((clusterPoint, idx) => {
@@ -25,15 +39,11 @@ onmessage = function (event) {
                     closesCluster.cluster = idx;
                 }
             });
-            pointsInCluster[closesCluster.cluster].push(point);
+            sumPointsInCluster[closesCluster.cluster].xSum += point.x;
+            sumPointsInCluster[closesCluster.cluster].ySum += point.y;
+            ++sumPointsInCluster[closesCluster.cluster].total;
         }
-        clusters = Array.from({length: event.data.numberOfCluster}, (v, idx) => {
-            const sumOfCoords = pointsInCluster[idx].reduce(reduceToSumOfPointCoords, {x: 0, y: 0});
-            return {
-                x: sumOfCoords.x / pointsInCluster[idx].length,
-                y: sumOfCoords.y / pointsInCluster[idx].length
-            }
-        });
+        clusters = Array.from({length: event.data.numberOfCluster}, (v, idx) => newCluster(sumPointsInCluster[idx]));
         if (event.data.showPreview) {
             postMessage({clusters, done: false});
         }
