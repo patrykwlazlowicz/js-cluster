@@ -65,6 +65,7 @@ function startProcessing(showPreview) {
         animations = [];
     }
     processAlgorithm('k-means', 'k-means-worker.js', showPreview);
+    processAlgorithm('kohonen', 'kohonen-worker.js', showPreview);
 }
 
 function processAlgorithm(canvasId, workerName, showPreview) {
@@ -104,9 +105,9 @@ function processAlgorithm(canvasId, workerName, showPreview) {
     }
     progressAnimation.start();
     animations.push(progressAnimation);
-    const kMeansWorker = new Worker(workerName);
-    kMeansWorker.onmessage = processBatch(ctx, progressAnimation);
-    kMeansWorker.postMessage({
+    const worker = new Worker(workerName);
+    worker.onmessage = processBatch(ctx, progressAnimation);
+    worker.postMessage({
         numberOfCluster: CLUSTERS,
         canvasSize: CANVAS_SIZE,
         points,
@@ -125,7 +126,6 @@ function processBatch(ctx, progressAnimation) {
     return (event) => {
         progressAnimation.stop();
         if (progressAnimation.refreshWorkerPreview) {
-            ctx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
             ctx.putImageData(pointsImage, 0, 0);
             for (let cluster of event.data.clusters) {
                 drawClusterPoint(ctx, cluster, event.data.done);

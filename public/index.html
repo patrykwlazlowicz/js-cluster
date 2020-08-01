@@ -21,7 +21,7 @@
 <div class="group">
     <button class="group-item" onclick="generatePoints()">Generate points</button>
     <button class="group-item" onclick="startProcessing(true)">Start processing with preview</button>
-    <button class="group-item" onclick="startProcessing(false)">Start processing with animation</button>
+    <button class="group-item" onclick="startProcessing(false)">Start processing</button>
     <label for="epochCounter" class="group-item">Epoch counter: </label>
     <input id="epochCounter" class="group-item" value="1000"/>
     <label for="differenceThreshold" class="group-item">Difference threshold: </label>
@@ -29,5 +29,6 @@
 </div>
 <canvas id="original" width="600" height="600"></canvas>
 <canvas id="k-means" width="600" height="600"></canvas>
+<canvas id="kohonen" width="600" height="600"></canvas>
 </body>
 </html>
