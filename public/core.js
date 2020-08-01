@@ -1,16 +1,21 @@
 let points = [];
-let animations = [];
 let pointsImage = undefined;
+let numberOfCluster = 0;
+let epochCounter = 0;
+let differenceThreshold = 0;
+let learningRate = 0;
+let winnerTakeAll = true;
+let disappearanceRate = 0;
 const CANVAS_SIZE = 600;
-const POINT_GROUPS = 20;
-const POINT_GROUP_SIZE = 15000;
-const POINT_GROUP_MIN_DISTANCE = 100;
-const POINT_RANDOM = 50000;
-const POINT_STD_DEVIATION = 30;
-const CLUSTERS = 20;
-const PROGRESS_CIRCLE_MAX_SIZE = 50;
-const DEFAULT_EPOCH_COUNTER = 100;
-const DEFAULT_DIFFERENCE_THRESHOLD = 100;
+const POINT_GROUPS = 10;
+const POINT_GROUP_SIZE = 20000;
+const POINT_STD_DEVIATION = 25;
+const POINT_RANDOM = 1000;
+const CLUSTERS = 10;
+const EPOCH_COUNTER = 1000;
+const DIFFERENCE_THRESHOLD = 0.01;
+const LEARNING_RATE = 0.01;
+const DISAPPEARANCE_RATE = 0.1;
 
 function randomGaussian(mean, sd) {
     let y, x1, x2, w;
@@ -27,27 +32,23 @@ function randomGaussian(mean, sd) {
 }
 
 function generatePoints() {
+    const groups = parseValue('groups', POINT_GROUPS, parseInt);
+    const groupsSize = parseValue('groupsSize', POINT_GROUP_SIZE, parseInt);
+    const groupsDispersion = parseValue('groupsDispersion', POINT_STD_DEVIATION, parseInt);
+    const random = parseValue('random', POINT_RANDOM, parseInt);
     const originalCanvas = document.getElementById('original');
     const ctx = originalCanvas.getContext('2d');
     points = [];
-    const generatedGroups = [];
-    for (let i = 0; i < POINT_GROUPS; ++i) {
+    for (let i = 0; i < groups; ++i) {
         const gX = Math.random() * CANVAS_SIZE;
         const gY = Math.random() * CANVAS_SIZE;
-        let distances = generatedGroups.map(({x, y}) => Math.sqrt(Math.pow(x - gX, 2) + Math.pow(y - gY, 2)));
-        distances = distances.sort((a, b) => a - b);
-        if (distances[0] <= POINT_GROUP_MIN_DISTANCE) {
-            --i;
-        } else {
-            generatedGroups.push({x: gX, y: gY});
-            for (let j = 0; j < POINT_GROUP_SIZE; ++j) {
-                const x = randomGaussian(gX, POINT_STD_DEVIATION);
-                const y = randomGaussian(gY, POINT_STD_DEVIATION);
-                points.push({x, y});
-            }
+        for (let j = 0; j < groupsSize; ++j) {
+            const x = randomGaussian(gX, groupsDispersion);
+            const y = randomGaussian(gY, groupsDispersion);
+            points.push({x, y});
         }
     }
-    for (let i = 0; i < POINT_RANDOM; ++i) {
+    for (let i = 0; i < random; ++i) {
         const x = Math.random() * CANVAS_SIZE;
         const y = Math.random() * CANVAS_SIZE;
         points.push({x, y});
@@ -56,65 +57,12 @@ function generatePoints() {
     pointsImage = ctx.getImageData(0, 0, CANVAS_SIZE, CANVAS_SIZE);
 }
 
-function startProcessing(showPreview) {
-    if (animations.length) {
-        animations.forEach(animation => {
-            animation.stop();
-            animation.refreshWorkerPreview = false;
-        });
-        animations = [];
+function chooseAlgorithm() {
+    if (!points.length) {
+        generatePoints();
     }
-    processAlgorithm('k-means', 'k-means-worker.js', showPreview);
-    processAlgorithm('kohonen', 'kohonen-worker.js', showPreview);
-}
-
-function processAlgorithm(canvasId, workerName, showPreview) {
-    const canvas = document.getElementById(canvasId);
-    const ctx = canvas.getContext('2d');
-    const epochCounter = parseValue('epochCounter', DEFAULT_EPOCH_COUNTER, parseInt);
-    const differenceThreshold = parseValue('differenceThreshold', DEFAULT_DIFFERENCE_THRESHOLD, parseFloat);
-    const progressAnimation = {
-        circle: {
-            inner: 0,
-            outer: 0
-        },
-        workerCtx: ctx,
-        intervalId: undefined,
-        refreshWorkerPreview: true,
-        stop: function () {
-            if (this.intervalId) {
-                clearInterval(this.intervalId);
-                this.intervalId = undefined;
-            }
-        },
-        start: function () {
-            this.intervalId = setInterval(this.refresh.bind(this), 10);
-        },
-        refresh: function () {
-            drawProgressAnimation(this.workerCtx, this.circle);
-            if (this.circle.inner !== PROGRESS_CIRCLE_MAX_SIZE) {
-                ++this.circle.inner;
-            } else if (this.circle.inner === PROGRESS_CIRCLE_MAX_SIZE
-                && this.circle.outer !== PROGRESS_CIRCLE_MAX_SIZE) {
-                ++this.circle.outer;
-            } else {
-                this.circle.inner = 0;
-                this.circle.outer = 0;
-            }
-        }
-    }
-    progressAnimation.start();
-    animations.push(progressAnimation);
-    const worker = new Worker(workerName);
-    worker.onmessage = processBatch(ctx, progressAnimation);
-    worker.postMessage({
-        numberOfCluster: CLUSTERS,
-        canvasSize: CANVAS_SIZE,
-        points,
-        showPreview,
-        epochCounter,
-        differenceThreshold
-    });
+    document.getElementById('setupPoints').remove();
+    document.getElementById('chooseAlgorithm').classList.remove('hide');
 }
 
 function parseValue(id, defaultValue, parser) {
@@ -122,16 +70,61 @@ function parseValue(id, defaultValue, parser) {
     return !!value ? value : defaultValue;
 }
 
-function processBatch(ctx, progressAnimation) {
-    return (event) => {
-        progressAnimation.stop();
-        if (progressAnimation.refreshWorkerPreview) {
-            ctx.putImageData(pointsImage, 0, 0);
-            for (let cluster of event.data.clusters) {
-                drawClusterPoint(ctx, cluster, event.data.done);
-            }
-            drawEpoch(ctx, event.data.epoch)
+function readCommonSetup() {
+    numberOfCluster = parseValue('clusterAmount', CLUSTERS, parseInt);
+    epochCounter = parseValue('epochCounter', EPOCH_COUNTER, parseInt);
+    differenceThreshold = parseValue('differenceThreshold', DIFFERENCE_THRESHOLD, parseFloat);
+    document.getElementById('chooseAlgorithm').remove();
+}
+
+function startKmeans() {
+    readCommonSetup();
+    const canvas = document.getElementById('cluster');
+    const ctx = canvas.getContext('2d');
+    const worker = new Worker('k-means-worker.js');
+    worker.onmessage = processBatch(ctx);
+    worker.postMessage({
+        canvasSize: CANVAS_SIZE,
+        numberOfCluster,
+        points,
+        epochCounter,
+        differenceThreshold
+    });
+}
+
+function setupKohonen() {
+    readCommonSetup();
+    document.getElementById('kohonenSetup').classList.remove('hide');
+}
+
+function startKohonen() {
+    learningRate = parseValue('learningRate', LEARNING_RATE, parseFloat);
+    winnerTakeAll = document.getElementById('winnerTakeAll').checked;
+    disappearanceRate = parseValue('disappearanceRate', DISAPPEARANCE_RATE, parseFloat);
+    document.getElementById('kohonenSetup').remove();
+    const canvas = document.getElementById('cluster');
+    const ctx = canvas.getContext('2d');
+    const worker = new Worker('kohonen-worker.js');
+    worker.onmessage = processBatch(ctx);
+    worker.postMessage({
+        canvasSize: CANVAS_SIZE,
+        numberOfCluster,
+        points,
+        epochCounter,
+        differenceThreshold,
+        learningRate,
+        winnerTakeAll,
+        disappearanceRate
+    });
+}
+
+function processBatch(ctx) {
+    return function (event) {
+        ctx.putImageData(pointsImage, 0, 0);
+        for (let cluster of event.data.clusters) {
+            drawClusterPoint(ctx, cluster, event.data.done);
         }
+        drawEpoch(ctx, event.data.epoch)
     }
 }
 
@@ -141,18 +134,6 @@ function drawPoints(ctx) {
         ctx.fillStyle = "#000000";
         ctx.fillRect(point.x, point.y, 1, 1);
     }
-}
-
-function drawProgressAnimation(ctx, circle) {
-    ctx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
-    ctx.beginPath();
-    ctx.fillStyle = "#000000";
-    ctx.arc(CANVAS_SIZE / 2, CANVAS_SIZE / 2, circle.inner, 0, 2 * Math.PI);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.fillStyle = "#FFFFFF";
-    ctx.arc(CANVAS_SIZE / 2, CANVAS_SIZE / 2, circle.outer, 0, 2 * Math.PI);
-    ctx.fill();
 }
 
 function drawClusterPoint(ctx, cluster, done) {

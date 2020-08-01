@@ -7,28 +7,82 @@
     <style>
         .group {
             display: flex;
-            flex-direction: row;
-            align-items: baseline;
+            flex-direction: column;
         }
+
         .group-item {
+            display: flex;
+            align-items: baseline;
+            flex-direction: row;
             max-width: 50%;
             flex: 1 1 100%;
             margin: 0.25rem;
         }
+
+        .hide {
+            display: none;
+        }
     </style>
 </head>
 <body>
-<div class="group">
-    <button class="group-item" onclick="generatePoints()">Generate points</button>
-    <button class="group-item" onclick="startProcessing(true)">Start processing with preview</button>
-    <button class="group-item" onclick="startProcessing(false)">Start processing</button>
-    <label for="epochCounter" class="group-item">Epoch counter: </label>
-    <input id="epochCounter" class="group-item" value="1000"/>
-    <label for="differenceThreshold" class="group-item">Difference threshold: </label>
-    <input id="differenceThreshold" class="group-item" value="0.01"/>
+<div id="setupPoints">
+    <div class="group">
+        <div class="group-item">
+            <label for="groups" class="group-item">Aggregation amount: </label>
+            <input id="groups" class="group-item" value="10"/>
+        </div>
+        <div class="group-item">
+            <label for="groupsSize" class="group-item">Aggregation point amount: </label>
+            <input id="groupsSize" class="group-item" value="20000"/>
+        </div>
+        <div class="group-item">
+            <label for="groupsDispersion" class="group-item">Aggregation dispersion: </label>
+            <input id="groupsDispersion" class="group-item" value="25"/>
+        </div>
+        <div class="group-item">
+            <label for="random" class="group-item">Random points: </label>
+            <input id="random" class="group-item" value="1000"/>
+        </div>
+        <div class="group-item">
+            <button class="group-item" onclick="generatePoints()">Preview</button>
+            <button class="group-item" onclick="chooseAlgorithm()">Next step</button>
+        </div>
+    </div>
+    <canvas id="original" width="600" height="600"></canvas>
 </div>
-<canvas id="original" width="600" height="600"></canvas>
-<canvas id="k-means" width="600" height="600"></canvas>
-<canvas id="kohonen" width="600" height="600"></canvas>
+<div id="chooseAlgorithm" class="group hide">
+    <div class="group-item">
+        <label for="clusterAmount" class="group-item">Clusters: </label>
+        <input id="clusterAmount" class="group-item" value="10"/>
+    </div>
+    <div class="group-item">
+        <label for="epochCounter" class="group-item">Epoch counter: </label>
+        <input id="epochCounter" class="group-item" value="1000"/>
+    </div>
+    <div class="group-item">
+        <label for="differenceThreshold" class="group-item">Difference threshold: </label>
+        <input id="differenceThreshold" class="group-item" value="0.01"/>
+    </div>
+    <div class="group-item">
+        <button class="group-item" onclick="startKmeans()">Start K-means algorithm</button>
+        <button class="group-item" onclick="setupKohonen()">Setup Kohonen SOM</button>
+    </div>
+</div>
+<div id="kohonenSetup" class="group hide">
+    <div class="group-item">
+        <label for="learningRate" class="group-item">Learning rate: </label>
+        <input id="learningRate" class="group-item" value="0.01"/>
+    </div>
+    <div class="group-item">
+        <label for="winnerTakeAll" class="group-item">Winner take all: </label>
+        <input id="winnerTakeAll" type="checkbox" class="group-item" checked/>
+    </div>
+    <div class="group-item">
+        <label for="disappearanceRate" class="group-item">Disappearance rate: </label>
+        <input id="disappearanceRate" class="group-item" value="0.1"/>
+    </div>
+    <button class="group-item" onclick="startKohonen()">Setup Kohonen SOM</button>
+</div>
+<canvas id="cluster" width="600" height="600"></canvas>
 </body>
 </html>
