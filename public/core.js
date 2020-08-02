@@ -1,12 +1,13 @@
 let points = [];
 let pointsImage = undefined;
+let worker = undefined;
 let numberOfCluster = 0;
 let epochCounter = 0;
 let differenceThreshold = 0;
 let learningRate = 0;
 let winnerTakeAll = true;
 let disappearanceRate = 0;
-const CANVAS_SIZE = 600;
+const CANVAS_SIZE = 800;
 const POINT_GROUPS = 10;
 const POINT_GROUP_SIZE = 20000;
 const POINT_STD_DEVIATION = 25;
@@ -57,11 +58,33 @@ function generatePoints() {
     pointsImage = ctx.getImageData(0, 0, CANVAS_SIZE, CANVAS_SIZE);
 }
 
+function savePoints() {
+    if (points.length) {
+        const a = document.createElement('a');
+        const file = new Blob([JSON.stringify(points)], {type: 'text/plain'});
+        a.href = URL.createObjectURL(file);
+        a.download = 'points.json';
+        a.click();
+    }
+}
+
+function loadPoints(file) {
+    const reader = new FileReader();
+    reader.addEventListener('load', (event) => {
+        points = JSON.parse(event.target.result);
+        const originalCanvas = document.getElementById('original');
+        const ctx = originalCanvas.getContext('2d');
+        drawPoints(ctx);
+        pointsImage = ctx.getImageData(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+    });
+    reader.readAsText(file);
+}
+
 function chooseAlgorithm() {
     if (!points.length) {
         generatePoints();
     }
-    document.getElementById('setupPoints').remove();
+    document.getElementById('setupPoints').classList.add('hide');
     document.getElementById('chooseAlgorithm').classList.remove('hide');
 }
 
@@ -74,14 +97,15 @@ function readCommonSetup() {
     numberOfCluster = parseValue('clusterAmount', CLUSTERS, parseInt);
     epochCounter = parseValue('epochCounter', EPOCH_COUNTER, parseInt);
     differenceThreshold = parseValue('differenceThreshold', DIFFERENCE_THRESHOLD, parseFloat);
-    document.getElementById('chooseAlgorithm').remove();
+    document.getElementById('chooseAlgorithm').classList.add('hide');
 }
 
 function startKmeans() {
     readCommonSetup();
+    document.getElementById('cluster').classList.remove('hide');
     const canvas = document.getElementById('cluster');
     const ctx = canvas.getContext('2d');
-    const worker = new Worker('k-means-worker.js');
+    worker = new Worker('k-means-worker.js');
     worker.onmessage = processBatch(ctx);
     worker.postMessage({
         canvasSize: CANVAS_SIZE,
@@ -90,6 +114,7 @@ function startKmeans() {
         epochCounter,
         differenceThreshold
     });
+    document.getElementById('startOver').classList.remove('hide');
 }
 
 function setupKohonen() {
@@ -101,10 +126,11 @@ function startKohonen() {
     learningRate = parseValue('learningRate', LEARNING_RATE, parseFloat);
     winnerTakeAll = document.getElementById('winnerTakeAll').checked;
     disappearanceRate = parseValue('disappearanceRate', DISAPPEARANCE_RATE, parseFloat);
-    document.getElementById('kohonenSetup').remove();
+    document.getElementById('kohonenSetup').classList.add('hide');
+    document.getElementById('cluster').classList.remove('hide');
     const canvas = document.getElementById('cluster');
     const ctx = canvas.getContext('2d');
-    const worker = new Worker('kohonen-worker.js');
+    worker = new Worker('kohonen-worker.js');
     worker.onmessage = processBatch(ctx);
     worker.postMessage({
         canvasSize: CANVAS_SIZE,
@@ -116,6 +142,14 @@ function startKohonen() {
         winnerTakeAll,
         disappearanceRate
     });
+    document.getElementById('startOver').classList.remove('hide');
+}
+
+function startOver() {
+    worker.terminate();
+    document.getElementById('startOver').classList.add('hide');
+    document.getElementById('cluster').classList.add('hide');
+    document.getElementById('setupPoints').classList.remove('hide');
 }
 
 function processBatch(ctx) {
