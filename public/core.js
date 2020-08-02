@@ -15,7 +15,7 @@ const POINT_RANDOM = 1000;
 const CLUSTERS = 10;
 const EPOCH_COUNTER = 1000;
 const DIFFERENCE_THRESHOLD = 0.01;
-const LEARNING_RATE = 0.01;
+const LEARNING_RATE = 0.001;
 const DISAPPEARANCE_RATE = 0.1;
 
 function randomGaussian(mean, sd) {
