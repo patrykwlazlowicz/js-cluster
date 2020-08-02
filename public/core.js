@@ -146,7 +146,6 @@ function startKohonen() {
 function startOver() {
     worker.terminate();
     document.getElementById('result').classList.add('hide');
-    document.getElementById('cluster').classList.add('hide');
     document.getElementById('setupPoints').classList.remove('hide');
 }
 
