@@ -26,6 +26,10 @@
             align-self: baseline;
         }
 
+        .info {
+            color: #f00;
+        }
+
         .hide {
             display: none;
         }
@@ -121,7 +125,22 @@
     </div>
     <button class="group-item" onclick="startKohonen()">Setup Kohonen SOM</button>
 </div>
-<canvas id="cluster" width="800" height="800"></canvas>
-<button id="startOver" class="hide" onclick="startOver()">Start over</button>
+<div id="result" class="preview hide">
+    <div class="group">
+        <div class="group-item">
+            <label for="epochTime" class="group-item-element">Avg epoch time: </label>
+            <input id="epochTime" class="group-item-element info" disabled value="0"/>
+        </div>
+        <div class="group-item">
+            <label for="epoch" class="group-item-element">Epoch: </label>
+            <input id="epoch" class="group-item-element info" disabled/>
+        </div>
+        <div class="group-item">
+            <button id="startOver" class="group-item-element" onclick="startOver()">Start over</button>
+        </div>
+        <div></div>
+    </div>
+    <canvas id="cluster" width="800" height="800"></canvas>
+</div>
 </body>
 </html>

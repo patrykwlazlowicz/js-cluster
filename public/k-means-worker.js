@@ -25,8 +25,9 @@ function newCluster(sumPointInCluster) {
 
 onmessage = function (event) {
     let epoch = 0;
+    const startTime = Date.now();
     let clusters = Array.from({length: event.data.numberOfCluster}, randomPointInCanvasFunction(event.data.canvasSize));
-    postMessage({clusters, done: false, epoch});
+    postMessage({clusters, done: false, epoch, epochTime: (Date.now() - startTime)});
     for (let thresholdStop = false; epoch < event.data.epochCounter && !thresholdStop; ++epoch) {
         const sumPointsInCluster = Array.from({length: event.data.numberOfCluster}, () => initSumPointsInCluster());
         for (let point of event.data.points) {
@@ -53,7 +54,7 @@ onmessage = function (event) {
         if (maxDifference <= event.data.differenceThreshold) {
             thresholdStop = true;
         }
-        postMessage({clusters, done: false, epoch: epoch + 1});
+        postMessage({clusters, done: false, epoch: epoch + 1, epochTime: (Date.now() - startTime) / (epoch + 1)});
     }
-    postMessage({clusters, done: true, epoch});
+    postMessage({clusters, done: true, epoch, epochTime: (Date.now() - startTime) / epoch});
 }

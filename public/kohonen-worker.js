@@ -24,10 +24,11 @@ function deepCloneFunction(neurons) {
 
 onmessage = function (event) {
     let epoch = 0;
+    const startTime = Date.now();
     const learningRate = learningRateFunction(event.data.learningRate, event.data.epochCounter);
     const lambda = lambdaFunction(event.data.disappearanceRate, event.data.epochCounter);
     let neurons = Array.from({length: event.data.numberOfCluster}, randomPointInCanvasFunction(event.data.canvasSize));
-    postMessage({clusters: neurons, done: false, epoch});
+    postMessage({clusters: neurons, done: false, epoch, epochTime: (Date.now() - startTime)});
     for (let thresholdStop = false; epoch < event.data.epochCounter && !thresholdStop; ++epoch) {
         const currentLearningRate = learningRate(epoch);
         const currentLambda = lambda(epoch);
@@ -63,7 +64,7 @@ onmessage = function (event) {
             }
         }
         neurons = newNeurons;
-        postMessage({clusters: neurons, done: false, epoch: epoch + 1});
+        postMessage({clusters: neurons, done: false, epoch: epoch + 1, epochTime: (Date.now() - startTime) / (epoch + 1)});
     }
-    postMessage({clusters: neurons, done: true, epoch});
+    postMessage({clusters: neurons, done: true, epoch, epochTime: (Date.now() - startTime) / epoch});
 }

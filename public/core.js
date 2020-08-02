@@ -102,7 +102,7 @@ function readCommonSetup() {
 
 function startKmeans() {
     readCommonSetup();
-    document.getElementById('cluster').classList.remove('hide');
+    document.getElementById('result').classList.remove('hide');
     const canvas = document.getElementById('cluster');
     const ctx = canvas.getContext('2d');
     worker = new Worker('k-means-worker.js');
@@ -114,7 +114,6 @@ function startKmeans() {
         epochCounter,
         differenceThreshold
     });
-    document.getElementById('startOver').classList.remove('hide');
 }
 
 function setupKohonen() {
@@ -127,7 +126,7 @@ function startKohonen() {
     winnerTakeAll = document.getElementById('winnerTakeAll').checked;
     disappearanceRate = parseValue('disappearanceRate', DISAPPEARANCE_RATE, parseFloat);
     document.getElementById('kohonenSetup').classList.add('hide');
-    document.getElementById('cluster').classList.remove('hide');
+    document.getElementById('result').classList.remove('hide');
     const canvas = document.getElementById('cluster');
     const ctx = canvas.getContext('2d');
     worker = new Worker('kohonen-worker.js');
@@ -142,12 +141,11 @@ function startKohonen() {
         winnerTakeAll,
         disappearanceRate
     });
-    document.getElementById('startOver').classList.remove('hide');
 }
 
 function startOver() {
     worker.terminate();
-    document.getElementById('startOver').classList.add('hide');
+    document.getElementById('result').classList.add('hide');
     document.getElementById('cluster').classList.add('hide');
     document.getElementById('setupPoints').classList.remove('hide');
 }
@@ -158,7 +156,8 @@ function processBatch(ctx) {
         for (let cluster of event.data.clusters) {
             drawClusterPoint(ctx, cluster, event.data.done);
         }
-        drawEpoch(ctx, event.data.epoch)
+        document.getElementById('epoch').value = event.data.epoch;
+        document.getElementById('epochTime').value = Math.floor(event.data.epochTime) + 'ms';
     }
 }
 
@@ -175,11 +174,4 @@ function drawClusterPoint(ctx, cluster, done) {
     ctx.fillStyle = done ? '#00FF00' : '#FF0000';
     ctx.arc(cluster.x, cluster.y, 10, 0, 2 * Math.PI);
     ctx.fill();
-}
-
-function drawEpoch(ctx, epoch) {
-    ctx.font = "50px Arial";
-    ctx.fillStyle = '#0000FF';
-    ctx.textBaseline = 'top';
-    ctx.fillText(epoch, 10, 10);
 }
